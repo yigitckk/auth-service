@@ -23,3 +23,11 @@ def verify_token(token: str) -> dict:
     except JWTError as e:
         raise JWTError("Could not validate token")
 
+def generate_refresh_token(data: dict) -> str:
+    kopya = data.copy()
+    kopya["exp"] = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
+    imza = jwt.encode(kopya,settings.SECRET_KEY, algorithm=settings.ALGORITHM) #imza 
+    return imza
+
+
+
