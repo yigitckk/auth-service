@@ -4,7 +4,7 @@ from app.db.database import get_db
 from app.schemas.user import UserCreate, UserResponse
 from app.services import auth as auth_service
 from app.schemas.refreshtoken import RefreshTokenRequest
-from app.core.security import create_access_token
+from app.core.security import create_access_token, rate_limit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -18,7 +18,7 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     
 
 @router.post("/login")
-def login(email: str, password: str, db: Session = Depends(get_db)):
+def login(email: str, password: str, db: Session = Depends(get_db), _: None = Depends(rate_limit)):
     try:
         token = auth_service.login_user(db, email,password)
         return {"access_token": token, "token_type": "bearer"}   

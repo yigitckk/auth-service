@@ -3,6 +3,8 @@ from jose import JWTError, jwt
 from passlib.context import CryptContext
 from app.core.config import settings 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+from collections import defaultdict
+from fastapi import HTTPException, Request
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password) # hash üretimi.
@@ -28,6 +30,26 @@ def generate_refresh_token(data: dict) -> str:
     kopya["exp"] = datetime.utcnow() + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
     imza = jwt.encode(kopya,settings.SECRET_KEY, algorithm=settings.ALGORITHM) #imza 
     return imza
+
+rate_limit_store = {} #[count, window_start]
+
+def rate_limit(request: Request):
+    ip = request.client.host
+    if ip in rate_limit_store:
+        count, window_start = rate_limit_store[ip]
+        if datetime.utcnow() - window_start > timedelta(minutes=5): 
+            window_start = datetime.utcnow()
+            count = 1
+        else: 
+            count += 1
+        rate_limit_store[ip] = [count,datetime.utcnow()]
+
+        if count > 5:
+            raise HTTPException(status_code=429)
+    else:
+        rate_limit_store[ip] = [1, datetime.utcnow()]
+    
+
 
 
 
