@@ -4,7 +4,7 @@ from app.db.database import get_db
 from app.schemas.user import UserCreate, UserResponse
 from app.services import auth as auth_service
 from app.schemas.refreshtoken import RefreshTokenRequest
-from app.core.security import create_access_token, rate_limit
+from app.core.security import create_access_token, rate_limit, verify_token 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -43,3 +43,13 @@ def revoke(token: RefreshTokenRequest, db: Session = Depends(get_db)):
         return {"message": "Token revoked"}
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.post("/revoke-all")
+def revoke_all(token: RefreshTokenRequest, db: Session = Depends(get_db)):
+    try:
+        payload = verify_token(token.refresh_token)
+        user_id = int(payload["sub"])
+        auth_service.revoke_all(db,user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=401, detail=strstr(e))

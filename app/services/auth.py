@@ -62,4 +62,7 @@ def get_refresh_token(db, token):
         raise ValueError("INvalid credentials")
     verified = verify_token(refresh_token.token)
     return verified
-    
+   
+def revoke_all(db: Session, user_id: int):
+    db.query(RefreshToken).filter(RefreshToken.user_id == user_id).delete() 
+    db.commit()   
