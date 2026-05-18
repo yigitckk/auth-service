@@ -49,6 +49,8 @@ def save_refresh_token(db: Session, user_id: int) -> RefreshToken:
 
 def revoke_refresh_token(db: Session, token: dict):
     token = db.query(RefreshToken).filter(RefreshToken.token == token).first() # silmem lazım direkt tek atırda ama db.remove mu 
+    if token is None:
+        raise ValueError("Invalid token")
     db.delete(token)
     db.commit()
 
