@@ -2,8 +2,10 @@ from sqlalchemy.orm import Session
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.models.refreshtoken import RefreshToken 
-from app.schemas.refreshtoken import RefreshTokenRequest 
+from app.schemas.refreshtoken import RefreshTokenRequest
+from app.models.blacklist import BlacklistedToken 
 from app.core.security import hash_password, verify_password, create_access_token, generate_refresh_token, verify_token
+from datetime import datetime
 
 def create_user(db: Session, user:UserCreate) -> User:
     existing = db.query(User).filter(User.email == user.email).first()
@@ -38,6 +40,24 @@ def login_user(db:Session, email: str, password:str) -> dict:
     refresh_token = save_refresh_token(db, user.id)
     return {"access_token": token, "refresh_token": refresh_token}
 
+def logout_user(db:Session, token:str):
+    payload = verify_token(token)
+    user_email = str(payload["sub"]) 
+    user = db.query(User).filter(User.email == user_email).first()
+    if not user:
+        raise ValueError("not found user")
+    expire_timestamp = payload.get("exp")
+    if not expire_timestamp:
+        raise ValueError("Token date time none")
+    expire_date = datetime.utcfromtimestamp(expire_timestamp)
+    existing = db.query(BlacklistedToken).filter(BlacklistedToken.token == token).first()
+    if existing:
+        raise ValueError("token already in blacklist")
+    blacklisted_token = BlacklistedToken(token=token,expires_at=expire_date, user_id=user.id)
+    db.add(blacklisted_token)
+    db.query(RefreshToken).filter(RefreshToken.user_id == user.id).delete() 
+    db.commit()
+    return True
 
 def save_refresh_token(db: Session, user_id: int) -> RefreshToken:
     gtoken = generate_refresh_token({"sub": str(user_id)})

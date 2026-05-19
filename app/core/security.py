@@ -48,7 +48,7 @@ def rate_limit(request: Request):
             raise HTTPException(status_code=429)
     else:
         rate_limit_store[ip] = [1, datetime.utcnow()]
-    
+
 
 
 

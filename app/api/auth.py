@@ -4,6 +4,7 @@ from app.db.database import get_db
 from app.schemas.user import UserCreate, UserResponse
 from app.services import auth as auth_service
 from app.schemas.refreshtoken import RefreshTokenRequest
+from app.schemas.blacklist import LogoutRequest
 from app.core.security import create_access_token, rate_limit, verify_token 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -53,3 +54,20 @@ def revoke_all(token: RefreshTokenRequest, db: Session = Depends(get_db)):
         auth_service.revoke_all(db,user_id)
     except ValueError as e:
         raise HTTPException(status_code=401, detail=strstr(e))
+
+
+@router.post("/logout")
+def logout(token: LogoutRequest, db:Session = Depends(get_db)):
+    try:
+        # İşi tamamen service katmanına (service_auth.py) bırakıyoruz
+        auth_service.logout_user(token=token.access_token, db=db)
+        
+        # İşlem başarılıysa sadece mesaj döndür
+        return {"message": "Başarıyla çıkış yapıldı."}
+        
+    except ValueError as e:
+        # Token hatalı veya süresi dolmuşsa service_auth'dan fırlatılan hatayı yakala
+         raise HTTPException(
+            status_code=401, 
+            detail=str(e)
+        )
