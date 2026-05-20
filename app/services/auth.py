@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from app.models.session import Session as SessionModel
 from app.models.user import User
 from app.schemas.user import UserCreate
 from app.models.refreshtoken import RefreshToken 
@@ -31,11 +32,11 @@ def authenticate_user(db:Session, email:str, password:str) -> User | None:
     return authed 
 
 
-def login_user(db:Session, email: str, password:str) -> dict:
+def login_user(db:Session, email: str, password:str,ip:str, user_agent:str) -> dict:
     user = authenticate_user(db,email,password)
     if not user:
         raise ValueError("Invalid credentials")
-
+    session = create_session(db, user.id, ip,user_agent)
     token = create_access_token({"sub": user.email})
     refresh_token = save_refresh_token(db, user.id)
     return {"access_token": token, "refresh_token": refresh_token}
@@ -85,4 +86,41 @@ def get_refresh_token(db, token):
    
 def revoke_all(db: Session, user_id: int):
     db.query(RefreshToken).filter(RefreshToken.user_id == user_id).delete() 
-    db.commit()   
+    db.commit()  
+
+def get_current_user(db,token):
+    payload = verify_token(token)
+    user_email = str(payload["sub"]) 
+    user = db.query(User).filter(User.email == user_email).first()
+    if not user:
+        raise ValueError("not found user")
+    return user
+
+def create_session(db, user_id, ip, user_agent):
+    db_session = SessionModel(
+        user_id = user_id,
+        user_agent = user_agent,
+        ip_address = ip,
+        is_active = True
+    )
+    db.add(db_session)
+    db.commit()
+    db.refresh(db_session)
+    return db_session
+
+
+def get_user_sessions(db, user_id):
+    user_sessions = db.query(SessionModel).filter(SessionModel.user_id == user_id, SessionModel.is_active == True).all()
+    if not user_sessions:
+        raise ValueError("Invalid user sessions")
+    return user_sessions
+
+
+def deactivate_session(db, session_id, user_id):
+    user_session = db.query(SessionModel).filter(SessionModel.id == session_id).first()
+    if not user_session:
+        raise ValueError("Invalid session")
+    if user_session.user_id != user_id:
+        raise ValueError("ınvalid")
+    user_session.is_active = False
+    db.commit()
