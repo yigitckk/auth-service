@@ -12,7 +12,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 router = APIRouter(prefix="/auth", tags=["auth"])
 security = HTTPBearer()
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, status_code=201)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
         new_user = auth_service.create_user(db,user)
@@ -28,7 +28,7 @@ def login(request: Request, email: str, password: str, db: Session = Depends(get
         user_agent = request.headers.get("user-agent")
         token = auth_service.login_user(db, email,password, ip, user_agent)
        
-        return {"access_token": token, "token_type": "bearer"}   
+        return {**token, "token_type": "bearer"}   
     except ValueError as e: 
         raise HTTPException(status_code=401, detail=str(e))
   
